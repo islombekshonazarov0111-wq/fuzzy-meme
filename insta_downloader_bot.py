@@ -46,7 +46,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Salom!\n"
         "Menga Instagram, YouTube, TikTok yoki boshqa link yuboring — men uni yuklab beraman.\n\n"
-        "🎵 Faqat musiqa uchun: /music <link>\n\n"
+        "🎵 Musiqa uchun: /music <link>\n\n"
         f"📌 Avval {CHANNEL_USERNAME} kanaliga obuna bo‘ling!"
     )
 
@@ -87,21 +87,16 @@ async def process_media(msg, context, url, opts, is_audio=False):
         loop = asyncio.get_running_loop()
         filename, info = await loop.run_in_executor(None, lambda: ytdl_download(url, opts))
 
-        title = info.get("title", "Media")
-        caption = f"📥 Yuklandi: {title}"
-
+        caption = f"📥 Yuklandi: {info.get('title', 'Media')}"
         ext = os.path.splitext(filename)[1]
 
         with open(filename, "rb") as f:
-            if is_audio or ext in [".mp3", ".m4a", ".aac", ".ogg"]:
+            if is_audio:
                 await msg.reply_audio(InputFile(f, filename=filename), caption=caption)
-
             elif ext in [".mp4", ".mov", ".mkv", ".avi"]:
                 await msg.reply_video(InputFile(f), caption=caption)
-
             elif ext in [".jpg", ".jpeg", ".png", ".webp"]:
                 await msg.reply_photo(InputFile(f), caption=caption)
-
             else:
                 await msg.reply_document(InputFile(f), caption=caption)
 
@@ -121,10 +116,10 @@ async def process_media(msg, context, url, opts, is_audio=False):
 # === Oddiy link kelganda ===
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
-    text = msg.text or ""
+    link = msg.text or ""
 
-    if not text.startswith("http"):
-        await msg.reply_text("❌ Iltimos, to‘liq link yuboring.")
+    if not link.startswith("http"):
+        await msg.reply_text("❌ To‘liq link yuboring.")
         return
 
     if not await is_subscribed(msg.from_user.id, context):
@@ -134,22 +129,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await process_media(msg, context, text, video_opts)
+    await process_media(msg, context, link, video_opts)
 
 
 # === /music komandasi ===
 async def handle_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     args = context.args
+
     link = args[0] if args else msg.text.replace("/music", "").strip()
 
     if not link.startswith("http"):
-        await msg.reply_text("🎵 Iltimos musiqa link yuboring.")
+        await msg.reply_text("🎵 Musiqa linkini yuboring.")
         return
 
     if not await is_subscribed(msg.from_user.id, context):
         await msg.reply_text(
-            f"🎧 Musiqa olish uchun avval {CHANNEL_USERNAME} kanaliga obuna bo‘ling.",
+            f"🎧 Avval {CHANNEL_USERNAME} kanaliga obuna bo‘ling.",
             reply_markup=subscription_keyboard()
         )
         return
@@ -157,7 +153,7 @@ async def handle_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await process_media(msg, context, link, audio_opts, is_audio=True)
 
 
-# === Obunani tekshirish tugmasi ===
+# === Obunani tekshirish ===
 async def callback_check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -165,10 +161,7 @@ async def callback_check_subscription(update: Update, context: ContextTypes.DEFA
     if await is_subscribed(q.from_user.id, context):
         await q.edit_message_text("✅ Obuna tasdiqlandi! Endi link yuboring.")
     else:
-        await q.edit_message_text(
-            "❌ Hali obuna emassiz!",
-            reply_markup=subscription_keyboard()
-        )
+        await q.edit_message_text("❌ Hali obuna emassiz!", reply_markup=subscription_keyboard())
 
 
 # === Botni ishga tushirish ===
@@ -180,9 +173,9 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_handler(CallbackQueryHandler(callback_check_subscription, pattern="check_subscription"))
 
-    print("✅ Bot ishga tushdi...")
+    print("BOT ISHLADI...")
     app.run_polling()
 
 
-if name == "main":
+if __name__ == "__main__":
     main()
